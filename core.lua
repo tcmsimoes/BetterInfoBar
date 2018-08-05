@@ -20,6 +20,7 @@ myFrame:RegisterEvent("PLAYER_LOGIN")
 myFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 myFrame:RegisterEvent("PLAYER_MONEY")
 
+myFrame.realmName = "_no_realm_"
 myFrame.playerName = "_no_char_"
 myFrame.month = 0
 myFrame.day = 0
@@ -30,34 +31,39 @@ myFrame.tokenPrice = 0
 myFrame.fpsLastUpdate = 100000
 myFrame.tokenLastUpdate = 100000
 
-SavedVars = {
-    ["MoneyPerChar"] = {},
-    ["MoneyMonthly"] = {}
-}
-
 myFrame:SetScript("OnEvent", function(self, event, ...)
-    if GetRealmName() ~= "Draenor" then
-        return
-    end
-
     if event == "VARIABLES_LOADED" then
-        if not SavedVars["MoneyPerChar"][self.playerName] then
-            SavedVars["MoneyPerChar"][self.playerName] = 0
+        self.playerName = UnitName("player")
+        self.realmName = GetRealmName()
+
+        if not SavedVars[self.realmName] then
+            SavedVars[self.realmName] = {}
         end
-        if not SavedVars["MoneyMonthly"]["CurrentMonth"] then
-            SavedVars["MoneyMonthly"]["CurrentMonth"] = self.month
-            SavedVars["MoneyMonthly"]["PreviousMonthMoney"] = 0
-            SavedVars["MoneyMonthly"]["CurrentMonthMoney"] = 0
+        if not SavedVars[self.realmName]["Char"] then
+            SavedVars[self.realmName]["Char"] = {}
+        end
+        if not SavedVars[self.realmName]["Char"][self.playerName] then
+            SavedVars[self.realmName]["Char"][self.playerName] = 0
+        end
+        if not SavedVars[self.realmName]["CurrentMonthMoney"] then
+            SavedVars[self.realmName]["CurrentMonthMoney"] = 0
+        end
+        if not SavedVars[self.realmName]["PreviousMonthMoney"] then
+            SavedVars[self.realmName]["PreviousMonthMoney"] = 0
+        end
+        if not SavedVars["CurrentMonth"] then
+            SavedVars["CurrentMonth"] = self.month
         end
     elseif event == "PLAYER_LOGIN" then
         local curDate = C_Calendar.GetDate()
         self.day, self.month = curDate.monthDay, curDate.month
         self.playerName = UnitName("player")
+        self.realmName = GetRealmName()
 
-        if tonumber(SavedVars["MoneyMonthly"]["CurrentMonth"]) ~= self.month then
-            SavedVars["MoneyMonthly"]["CurrentMonth"] = self.month
-            SavedVars["MoneyMonthly"]["PreviousMonthMoney"] = SavedVars["MoneyMonthly"]["CurrentMonthMoney"]
-            SavedVars["MoneyMonthly"]["CurrentMonthMoney"] = 0
+        if tonumber(SavedVars["CurrentMonth"]) ~= self.month then
+            SavedVars["CurrentMonth"] = self.month
+            SavedVars[self.realmName]["PreviousMonthMoney"] = SavedVars[self.realmName]["CurrentMonthMoney"]
+            SavedVars[self.realmName]["CurrentMonthMoney"] = 0
         end
     elseif event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_MONEY" then
         CalculateMoney(self)
@@ -65,9 +71,10 @@ myFrame:SetScript("OnEvent", function(self, event, ...)
 end)
 
 FPS_UPDATERATE = 1.0
-TOKEN_UPDATERATE = 5 * 60.0
+TOKEN_UPDATERATE = 5 * 60 * 1.0
 myFrame:SetScript("OnUpdate", function(self, elapsed)
     self.fpsLastUpdate = self.fpsLastUpdate + elapsed
+    self.tokenLastUpdate = self.tokenLastUpdate + elapsed
 
     if (self.fpsLastUpdate >= FPS_UPDATERATE) then
         local fps = floor(GetFramerate() + 0.5)
@@ -77,7 +84,7 @@ myFrame:SetScript("OnUpdate", function(self, elapsed)
         local lagHomeText = format("|cff%s%d|r ms", GetThresholdHexColor(lagHome, 1000, 500, 250, 100, 0), lagHome)
         local lagWorldText = format("|cff%s%d|r ms", GetThresholdHexColor(lagWorld, 1000, 500, 250, 100, 0), lagWorld)
 
-        local goldText = GetCoinTextureStringExt(self.totalMoney)
+        local goldText = GetCoinTextureStringExt(math.floor(self.totalMoney / 10000) * 10000)
 
         local tokenText = self.tokenPrice
 
@@ -87,7 +94,7 @@ myFrame:SetScript("OnUpdate", function(self, elapsed)
     end
 
     if (self.tokenLastUpdate >= TOKEN_UPDATERATE) then
-        self.tokenPrice = GetTokenPrice()
+        self.tokenPrice = GetTokenPrice(self.totalMoney)
 
         self.tokenLastUpdate = 0
     end
@@ -98,8 +105,8 @@ myFrame:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self or UIParent, "ANCHOR_LEFT")
     GameTooltip:AddLine("Gold Balance")
     GameTooltip:AddDoubleLine("Total:", GetCoinTextureStringExt(self.totalMoney), 1, 1, 1, 1, 1, 1)
-    GameTooltip:AddDoubleLine("Current Month: ", GetCoinTextureStringExt(tonumber(SavedVars["MoneyMonthly"]["CurrentMonthMoney"])), 1, 1, 1, 1, 1, 1)
-    GameTooltip:AddDoubleLine("Previous Month: ", GetCoinTextureStringExt(tonumber(SavedVars["MoneyMonthly"]["PreviousMonthMoney"])), 1, 1, 1, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Current Month: ", GetCoinTextureStringExt(tonumber(SavedVars[self.realmName]["CurrentMonthMoney"])), 1, 1, 1, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Previous Month: ", GetCoinTextureStringExt(tonumber(SavedVars[self.realmName]["PreviousMonthMoney"])), 1, 1, 1, 1, 1, 1)
     GameTooltip:AddDoubleLine("Average Month: ", GetCoinTextureStringExt(self.averageMoneyMonth), 1, 1, 1, 1, 1, 1)
     GameTooltip:AddDoubleLine("Average Day: ", GetCoinTextureStringExt(self.averageMoneyDay), 1, 1, 1, 1, 1, 1)
     GameTooltip:Show()
@@ -109,12 +116,12 @@ myFrame:SetScript("OnLeave", function(self)
     GameTooltip:Hide()
 end)
 
-function GetTokenPrice()
+function GetTokenPrice(totalMoney)
     C_WowTokenPublic.UpdateMarketPrice()
     local tokenPrice = C_WowTokenPublic.GetCurrentMarketPrice()
 
     if tokenPrice and tokenPrice > 0 then
-        tokenPrice = GetCoinTextureStringExt(tokenPrice)
+        tokenPrice = GetCoinTextureStringExt(tokenPrice) .. " ("..math.floor(totalMoney / tokenPrice) ..")"
     else
         tokenPrice = "N/A"
     end
@@ -123,17 +130,17 @@ function GetTokenPrice()
 end
 
 function CalculateMoney(self)
-    local moneyBefore = tonumber(SavedVars["MoneyPerChar"][self.playerName]) or 0
+    local moneyBefore = tonumber(SavedVars[self.realmName]["Char"][self.playerName]) or 0
     local moneyAfter = GetMoney()
 
-    SavedVars["MoneyMonthly"]["CurrentMonthMoney"] = tonumber(SavedVars["MoneyMonthly"]["CurrentMonthMoney"]) + (moneyAfter - moneyBefore)
-    self.averageMoneyMonth = (tonumber(SavedVars["MoneyMonthly"]["PreviousMonthMoney"]) + tonumber(SavedVars["MoneyMonthly"]["CurrentMonthMoney"])) / 2
-    self.averageMoneyDay = tonumber(SavedVars["MoneyMonthly"]["CurrentMonthMoney"]) / self.day
+    SavedVars[self.realmName]["CurrentMonthMoney"] = tonumber(SavedVars[self.realmName]["CurrentMonthMoney"]) + (moneyAfter - moneyBefore)
+    self.averageMoneyMonth = (tonumber(SavedVars[self.realmName]["PreviousMonthMoney"]) + tonumber(SavedVars[self.realmName]["CurrentMonthMoney"])) / 2
+    self.averageMoneyDay = tonumber(SavedVars[self.realmName]["CurrentMonthMoney"]) / self.day
 
-    SavedVars["MoneyPerChar"][self.playerName] = moneyAfter
+    SavedVars[self.realmName]["Char"][self.playerName] = moneyAfter
 
     self.totalMoney = 0
-    for character, money in pairs(SavedVars["MoneyPerChar"]) do
+    for character, money in pairs(SavedVars[self.realmName]["Char"]) do
         self.totalMoney = self.totalMoney + tonumber(money)
     end
 end
