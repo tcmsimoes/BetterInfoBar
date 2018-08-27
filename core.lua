@@ -31,6 +31,8 @@ myFrame.tokenPrice = 0
 myFrame.fpsLastUpdate = 100000
 myFrame.tokenLastUpdate = 100000
 
+SavedVars = {}
+
 myFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "VARIABLES_LOADED" then
         self.playerName = UnitName("player")
