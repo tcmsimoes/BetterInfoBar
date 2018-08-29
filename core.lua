@@ -19,6 +19,7 @@ myFrame:RegisterEvent("VARIABLES_LOADED")
 myFrame:RegisterEvent("PLAYER_LOGIN")
 myFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 myFrame:RegisterEvent("PLAYER_MONEY")
+myFrame:RegisterEvent("PLAYER_XP_UPDATE")
 
 myFrame.realmName = "_no_realm_"
 myFrame.playerName = "_no_char_"
@@ -27,7 +28,9 @@ myFrame.day = 0
 myFrame.averageMoneyMonth = 0
 myFrame.averageMoneyDay = 0
 myFrame.totalMoney = 0
-myFrame.tokenPrice = 0
+myFrame.goldText = ""
+myFrame.tokenPriceText = ""
+myFrame.restedXpText = ""
 myFrame.fpsLastUpdate = 100000
 myFrame.tokenLastUpdate = 100000
 
@@ -67,8 +70,12 @@ myFrame:SetScript("OnEvent", function(self, event, ...)
             SavedVars[self.realmName]["PreviousMonthMoney"] = SavedVars[self.realmName]["CurrentMonthMoney"]
             SavedVars[self.realmName]["CurrentMonthMoney"] = 0
         end
+
+        CalculateRestedXp(self)
     elseif event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_MONEY" then
         CalculateMoney(self)
+    elseif event == "PLAYER_XP_UPDATE" then
+        CalculateRestedXp(self)
     end
 end)
 
@@ -86,17 +93,13 @@ myFrame:SetScript("OnUpdate", function(self, elapsed)
         local lagHomeText = format("|cff%s%d|r ms", GetThresholdHexColor(lagHome, 1000, 500, 250, 100, 0), lagHome)
         local lagWorldText = format("|cff%s%d|r ms", GetThresholdHexColor(lagWorld, 1000, 500, 250, 100, 0), lagWorld)
 
-        local goldText = GetCoinTextureStringExt(math.floor(self.totalMoney / 10000) * 10000)
-
-        local tokenText = self.tokenPrice
-
-        self.text:SetText(fpsText.." | |cFF99CC33H:|r"..lagHomeText.." | |cFF99CC33W:|r"..lagWorldText.." | "..goldText.." | "..tokenText)
+        self.text:SetText(fpsText.." | |cFF99CC33H:|r"..lagHomeText.." | |cFF99CC33W:|r"..lagWorldText.." | "..self.goldText.." | "..self.tokenPriceText..self.restedXpText)
 
         self.fpsLastUpdate = 0
     end
 
     if (self.tokenLastUpdate >= TOKEN_UPDATERATE) then
-        self.tokenPrice = GetTokenPrice(self.totalMoney)
+        self.tokenPriceText = CalculateTokenPrice(self.totalMoney)
 
         self.tokenLastUpdate = 0
     end
@@ -118,7 +121,7 @@ myFrame:SetScript("OnLeave", function(self)
     GameTooltip:Hide()
 end)
 
-function GetTokenPrice(totalMoney)
+function CalculateTokenPrice(totalMoney)
     C_WowTokenPublic.UpdateMarketPrice()
     local tokenPrice = C_WowTokenPublic.GetCurrentMarketPrice()
 
@@ -144,6 +147,18 @@ function CalculateMoney(self)
     self.totalMoney = 0
     for character, money in pairs(SavedVars[self.realmName]["Char"]) do
         self.totalMoney = self.totalMoney + tonumber(money)
+    end
+    
+    self.goldText = GetCoinTextureStringExt(math.floor(self.totalMoney / 10000) * 10000)
+end
+
+function CalculateRestedXp(self)
+    local restedXp = GetXPExhaustion()
+
+    if (restedXp) then
+        self.restedXpText = " | "..math.floor(restedXp / UnitXPMax("player") * 100 + 0.5).."%"
+    else
+        self.restedXpText = ""
     end
 end
 
