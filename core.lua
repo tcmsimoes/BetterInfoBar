@@ -1,7 +1,7 @@
-local myFrame = CreateFrame("Frame", "BetterInfoBarFrame", DEFAULT_CHAT_FRAME)
-myFrame:SetPoint("TOPLEFT", DEFAULT_CHAT_FRAME, "BOTTOMLEFT", -4, -30)
+local myFrame = CreateFrame("Frame", "BetterInfoBarFrame", UIParent)
+myFrame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", 32, 22)
 myFrame:SetHeight(22)
-myFrame:SetWidth(DEFAULT_CHAT_FRAME:GetWidth() + 30)
+myFrame:SetWidth(550)
 
 local backdrop_header = {bgFile = "Interface\\TutorialFrame\\TutorialFrameBackground",
     edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", tile=1, tileSize=16, edgeSize = 16,
