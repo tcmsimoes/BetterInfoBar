@@ -2,7 +2,7 @@ local myFrame = CreateFrame("Frame", "BetterInfoBarFrame", UIParent)
 myFrame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", 32, 22)
 myFrame:SetHeight(22)
 myFrame:SetWidth(550)
-myFrame:SetFrameLevel("BACKGROUND")
+myFrame:SetFrameStrata(BACKGROUND)
 
 local backdrop_header = {bgFile = "Interface\\TutorialFrame\\TutorialFrameBackground",
     edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", tile=1, tileSize=16, edgeSize = 16,
