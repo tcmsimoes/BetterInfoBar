@@ -155,11 +155,14 @@ end
 
 function CalculateRestedXp(self)
     local restedXp = GetXPExhaustion()
+    self.restedXpText = ""
 
-    if (restedXp) then
-        self.restedXpText = " | "..math.floor(restedXp / UnitXPMax("player") * 100 + 0.5).."%"
-    else
-        self.restedXpText = ""
+    if restedXp  then
+        local restXpPer = math.floor(restedXp / UnitXPMax("player") * 100 + 0.5)
+    
+        if restXpPer >= 1 then
+            self.restedXpText = " | "..restXpPer.."%"
+        end
     end
 end
 
