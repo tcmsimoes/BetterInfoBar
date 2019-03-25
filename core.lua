@@ -66,12 +66,6 @@ myFrame:SetScript("OnEvent", function(self, event, ...)
         self.playerName = UnitName("player")
         self.realmName = GetRealmName()
 
-        if tonumber(SavedVars["CurrentMonth"]) ~= self.month then
-            SavedVars["CurrentMonth"] = self.month
-            SavedVars[self.realmName]["PreviousMonthMoney"] = SavedVars[self.realmName]["CurrentMonthMoney"]
-            SavedVars[self.realmName]["CurrentMonthMoney"] = 0
-        end
-
         CalculateRestedXp(self)
     elseif event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_MONEY" then
         CalculateMoney(self)
@@ -139,11 +133,15 @@ function CalculateMoney(self)
     local moneyBefore = tonumber(SavedVars[self.realmName]["Char"][self.playerName]) or 0
     local moneyAfter = GetMoney()
 
-    SavedVars[self.realmName]["CurrentMonthMoney"] = tonumber(SavedVars[self.realmName]["CurrentMonthMoney"]) + (moneyAfter - moneyBefore)
-    self.averageMoneyMonth = (tonumber(SavedVars[self.realmName]["PreviousMonthMoney"]) + tonumber(SavedVars[self.realmName]["CurrentMonthMoney"])) / 2
-    self.averageMoneyDay = tonumber(SavedVars[self.realmName]["CurrentMonthMoney"]) / self.day
+    if self.initialized then
+        Initialize(self)
 
-    SavedVars[self.realmName]["Char"][self.playerName] = moneyAfter
+        SavedVars[self.realmName]["CurrentMonthMoney"] = tonumber(SavedVars[self.realmName]["CurrentMonthMoney"]) + (moneyAfter - moneyBefore)
+        self.averageMoneyMonth = (tonumber(SavedVars[self.realmName]["PreviousMonthMoney"]) + tonumber(SavedVars[self.realmName]["CurrentMonthMoney"])) / 2
+        self.averageMoneyDay = tonumber(SavedVars[self.realmName]["CurrentMonthMoney"]) / self.day
+
+        SavedVars[self.realmName]["Char"][self.playerName] = moneyAfter
+    end
 
     self.totalMoney = 0
     for character, money in pairs(SavedVars[self.realmName]["Char"]) do
@@ -162,6 +160,18 @@ function CalculateRestedXp(self)
     
         if restXpPer >= 1 then
             self.restedXpText = " | "..restXpPer.."%"
+        end
+    end
+end
+
+function Initialize(self)
+    if not self.initialized and self.month > 0 and self.month <= 12 then
+        self.initialized = true
+
+        if tonumber(SavedVars["CurrentMonth"]) ~= self.month then
+            SavedVars["CurrentMonth"] = self.month
+            SavedVars[self.realmName]["PreviousMonthMoney"] = SavedVars[self.realmName]["CurrentMonthMoney"]
+            SavedVars[self.realmName]["CurrentMonthMoney"] = 0
         end
     end
 end
