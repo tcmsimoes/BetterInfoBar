@@ -133,9 +133,9 @@ function CalculateMoney(self)
     local moneyBefore = tonumber(SavedVars[self.realmName]["Char"][self.playerName]) or 0
     local moneyAfter = GetMoney()
 
-    if self.initialized then
-        Initialize(self)
+    Initialize(self)
 
+    if self.initialized then
         SavedVars[self.realmName]["CurrentMonthMoney"] = tonumber(SavedVars[self.realmName]["CurrentMonthMoney"]) + (moneyAfter - moneyBefore)
         self.averageMoneyMonth = (tonumber(SavedVars[self.realmName]["PreviousMonthMoney"]) + tonumber(SavedVars[self.realmName]["CurrentMonthMoney"])) / 2
         self.averageMoneyDay = tonumber(SavedVars[self.realmName]["CurrentMonthMoney"]) / self.day
