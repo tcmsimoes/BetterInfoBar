@@ -165,13 +165,18 @@ function CalculateRestedXp(self)
 end
 
 function Initialize(self)
-    if not self.initialized and self.month > 0 and self.month <= 12 then
-        self.initialized = true
+    if not self.initialized then
+        local curDate = C_Calendar.GetDate()
+        self.day, self.month = curDate.monthDay, curDate.month
+        
+        if self.month > 0 and self.month <= 12 then
+            self.initialized = true
 
-        if tonumber(SavedVars["CurrentMonth"]) ~= self.month then
-            SavedVars["CurrentMonth"] = self.month
-            SavedVars[self.realmName]["PreviousMonthMoney"] = SavedVars[self.realmName]["CurrentMonthMoney"]
-            SavedVars[self.realmName]["CurrentMonthMoney"] = 0
+            if tonumber(SavedVars["CurrentMonth"]) ~= self.month then
+                SavedVars["CurrentMonth"] = self.month
+                SavedVars[self.realmName]["PreviousMonthMoney"] = SavedVars[self.realmName]["CurrentMonthMoney"]
+                SavedVars[self.realmName]["CurrentMonthMoney"] = 0
+            end
         end
     end
 end
