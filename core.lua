@@ -1,4 +1,4 @@
-local myFrame = CreateFrame("Frame", "BetterInfoBarFrame", UIParent)
+local myFrame = CreateFrame("Frame", "BetterInfoBarFrame", UIParent, "BackdropTemplate")
 myFrame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", 32, 22)
 myFrame:SetHeight(22)
 myFrame:SetWidth(550)
@@ -187,7 +187,7 @@ function GetThresholdHexColor(quality, ...)
 end
 
 function GetThresholdColor(quality, ...)
-    local inf = 1/0
+    local inf = 10000000
     if quality ~= quality or quality == inf or quality == -inf then
         return 1, 1, 1
     end
