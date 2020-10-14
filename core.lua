@@ -61,7 +61,7 @@ myFrame:SetScript("OnEvent", function(self, event, ...)
             SavedVars["CurrentMonth"] = self.month
         end
     elseif event == "PLAYER_LOGIN" then
-        local curDate = C_Calendar.GetDate()
+        local curDate = C_DateAndTime.GetCurrentCalendarTime()
         self.day, self.month = curDate.monthDay, curDate.month
         self.playerName = UnitName("player")
         self.realmName = GetRealmName()
@@ -166,7 +166,7 @@ end
 
 function Initialize(self)
     if not self.initialized then
-        local curDate = C_Calendar.GetDate()
+        local curDate = C_DateAndTime.GetCurrentCalendarTime()
         self.day, self.month = curDate.monthDay, curDate.month
         
         if self.month > 0 and self.month <= 12 then
