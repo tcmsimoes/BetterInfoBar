@@ -1,4 +1,4 @@
-local myFrame = CreateFrame("Frame", "BetterInfoBarFrame", UIParent)
+local myFrame = CreateFrame("Frame", "BetterInfoBarFrame", UIParent, "BackdropTemplate")
 myFrame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", 32, 22)
 myFrame:SetHeight(22)
 myFrame:SetWidth(550)
