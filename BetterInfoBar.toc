@@ -1,4 +1,4 @@
-## Interface: 90000
+## Interface: 90001
 ## Title: BetterInfoBar
 ## Notes: FPS, Latency and total money of all characters in a realm
 ## Author: Banksy
