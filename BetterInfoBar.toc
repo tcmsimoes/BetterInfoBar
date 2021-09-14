@@ -1,8 +1,7 @@
-## Interface: 90005
+## Interface: 90100
 ## Title: BetterInfoBar
 ## Notes: FPS, Latency and total money of all characters in a realm
 ## Author: Banksy
-## Version: 1.0
 ## SavedVariables: BIB_SavedVars
 
 core.lua
