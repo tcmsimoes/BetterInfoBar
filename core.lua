@@ -1,7 +1,7 @@
 local myFrame = CreateFrame("Frame", "BetterInfoBarFrame", UIParent, "BackdropTemplate")
 myFrame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", 32, 22)
 myFrame:SetHeight(22)
-myFrame:SetWidth(550)
+myFrame:SetWidth(500)
 myFrame:SetFrameStrata(BACKGROUND)
 
 local backdrop_header = {bgFile = "Interface\\TutorialFrame\\TutorialFrameBackground",
