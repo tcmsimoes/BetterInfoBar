@@ -1,5 +1,6 @@
 ## Interface: 100200
 ## Title: BetterInfoBar
+## IconTexture: 618858
 ## Notes: FPS, Latency and total money of all characters in a realm
 ## Author: Banksy
 ## SavedVariables: BIB_SavedVars
