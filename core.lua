@@ -22,7 +22,6 @@ myFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 myFrame:RegisterEvent("PLAYER_MONEY")
 myFrame:RegisterEvent("PLAYER_XP_UPDATE")
 
-myFrame.realmName = "_no_realm_"
 myFrame.playerName = "_no_char_"
 myFrame.month = 0
 myFrame.day = 0
@@ -39,23 +38,19 @@ BIB_SavedVars = {}
 
 myFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "VARIABLES_LOADED" then
-        self.playerName = UnitName("player")
-        self.realmName = GetRealmName()
+        self.playerName = GetRealmName().."-"..UnitName("player")
 
-        if not BIB_SavedVars[self.realmName] then
-            BIB_SavedVars[self.realmName] = {}
+        if not BIB_SavedVars["Char"] then
+            BIB_SavedVars["Char"] = {}
         end
-        if not BIB_SavedVars[self.realmName]["Char"] then
-            BIB_SavedVars[self.realmName]["Char"] = {}
+        if not BIB_SavedVars["Char"][self.playerName] then
+            BIB_SavedVars["Char"][self.playerName] = 0
         end
-        if not BIB_SavedVars[self.realmName]["Char"][self.playerName] then
-            BIB_SavedVars[self.realmName]["Char"][self.playerName] = 0
+        if not BIB_SavedVars["CurrentMonthMoney"] then
+            BIB_SavedVars["CurrentMonthMoney"] = 0
         end
-        if not BIB_SavedVars[self.realmName]["CurrentMonthMoney"] then
-            BIB_SavedVars[self.realmName]["CurrentMonthMoney"] = 0
-        end
-        if not BIB_SavedVars[self.realmName]["PreviousMonthMoney"] then
-            BIB_SavedVars[self.realmName]["PreviousMonthMoney"] = 0
+        if not BIB_SavedVars["PreviousMonthMoney"] then
+            BIB_SavedVars["PreviousMonthMoney"] = 0
         end
         if not BIB_SavedVars["CurrentMonth"] then
             BIB_SavedVars["CurrentMonth"] = self.month
@@ -63,8 +58,7 @@ myFrame:SetScript("OnEvent", function(self, event, ...)
     elseif event == "PLAYER_LOGIN" then
         local curDate = C_DateAndTime.GetCurrentCalendarTime()
         self.day, self.month = curDate.monthDay, curDate.month
-        self.playerName = UnitName("player")
-        self.realmName = GetRealmName()
+        self.playerName = GetRealmName().."-"..UnitName("player")
 
         CalculateRestedXp(self)
     elseif event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_MONEY" then
@@ -105,8 +99,8 @@ myFrame:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self or UIParent, "ANCHOR_LEFT")
     GameTooltip:AddLine("Gold Balance")
     GameTooltip:AddDoubleLine("Total:", GetCoinTextureStringExt(self.totalMoney), 1, 1, 1, 1, 1, 1)
-    GameTooltip:AddDoubleLine("Current Month: ", GetCoinTextureStringExt(tonumber(BIB_SavedVars[self.realmName]["CurrentMonthMoney"])), 1, 1, 1, 1, 1, 1)
-    GameTooltip:AddDoubleLine("Previous Month: ", GetCoinTextureStringExt(tonumber(BIB_SavedVars[self.realmName]["PreviousMonthMoney"])), 1, 1, 1, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Current Month: ", GetCoinTextureStringExt(tonumber(BIB_SavedVars["CurrentMonthMoney"])), 1, 1, 1, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Previous Month: ", GetCoinTextureStringExt(tonumber(BIB_SavedVars["PreviousMonthMoney"])), 1, 1, 1, 1, 1, 1)
     GameTooltip:AddDoubleLine("Average Month: ", GetCoinTextureStringExt(self.averageMoneyMonth), 1, 1, 1, 1, 1, 1)
     GameTooltip:AddDoubleLine("Average Day: ", GetCoinTextureStringExt(self.averageMoneyDay), 1, 1, 1, 1, 1, 1)
     GameTooltip:Show()
@@ -130,21 +124,21 @@ function CalculateTokenPrice(totalMoney)
 end
 
 function CalculateMoney(self)
-    local moneyBefore = tonumber(BIB_SavedVars[self.realmName]["Char"][self.playerName]) or 0
+    local moneyBefore = tonumber(BIB_SavedVars["Char"][self.playerName]) or 0
     local moneyAfter = GetMoney()
 
     Initialize(self)
 
     if self.initialized then
-        BIB_SavedVars[self.realmName]["CurrentMonthMoney"] = tonumber(BIB_SavedVars[self.realmName]["CurrentMonthMoney"]) + (moneyAfter - moneyBefore)
-        self.averageMoneyMonth = (tonumber(BIB_SavedVars[self.realmName]["PreviousMonthMoney"]) + tonumber(BIB_SavedVars[self.realmName]["CurrentMonthMoney"])) / 2
-        self.averageMoneyDay = tonumber(BIB_SavedVars[self.realmName]["CurrentMonthMoney"]) / self.day
+        BIB_SavedVars["CurrentMonthMoney"] = tonumber(BIB_SavedVars["CurrentMonthMoney"]) + (moneyAfter - moneyBefore)
+        self.averageMoneyMonth = (tonumber(BIB_SavedVars["PreviousMonthMoney"]) + tonumber(BIB_SavedVars["CurrentMonthMoney"])) / 2
+        self.averageMoneyDay = tonumber(BIB_SavedVars["CurrentMonthMoney"]) / self.day
 
-        BIB_SavedVars[self.realmName]["Char"][self.playerName] = moneyAfter
+        BIB_SavedVars["Char"][self.playerName] = moneyAfter
     end
 
     self.totalMoney = 0
-    for character, money in pairs(BIB_SavedVars[self.realmName]["Char"]) do
+    for character, money in pairs(BIB_SavedVars["Char"]) do
         self.totalMoney = self.totalMoney + tonumber(money)
     end
     
@@ -174,8 +168,8 @@ function Initialize(self)
 
             if tonumber(BIB_SavedVars["CurrentMonth"]) ~= self.month then
                 BIB_SavedVars["CurrentMonth"] = self.month
-                BIB_SavedVars[self.realmName]["PreviousMonthMoney"] = BIB_SavedVars[self.realmName]["CurrentMonthMoney"]
-                BIB_SavedVars[self.realmName]["CurrentMonthMoney"] = 0
+                BIB_SavedVars["PreviousMonthMoney"] = BIB_SavedVars["CurrentMonthMoney"]
+                BIB_SavedVars["CurrentMonthMoney"] = 0
             end
         end
     end
