@@ -1,5 +1,6 @@
-## Interface: 110100
+## Interface: 110700
 ## Title: BetterInfoBar
+## Category-enUS: Better UI
 ## IconTexture: 618858
 ## Notes: FPS, Latency and total money of all characters in a realm
 ## Author: Banksy
