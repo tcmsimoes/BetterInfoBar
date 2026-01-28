@@ -31,12 +31,32 @@ myFrame.totalMoney = 0
 myFrame.goldText = ""
 myFrame.tokenPriceText = ""
 myFrame.restedXpText = ""
-myFrame.fpsLastUpdate = 100000
-myFrame.tokenLastUpdate = 100000
 
 BIB_SavedVars = {}
 
-myFrame:SetScript("OnEvent", function(self, event, ...)
+local FPS_UPDATERATE = 0.5
+local TOKEN_UPDATE_RATE = 5 * 60
+
+local function UpdateTokenPrice()
+    myFrame.tokenPriceText = CalculateTokenPrice(myFrame.totalMoney)
+
+    C_Timer.After(TOKEN_UPDATE_RATE, UpdateTokenPrice)
+end
+
+local function UpdateFps()
+    local fps = floor(GetFramerate() + 0.5)
+    local fpsText = format("|cff%s%d|r fps", GetThresholdHexColor(fps / 60), fps)
+                
+    local _, _, lagHome, lagWorld = GetNetStats()
+    local lagHomeText = format("|cff%s%d|r ms", GetThresholdHexColor(lagHome, 1000, 500, 250, 100, 0), lagHome)
+    local lagWorldText = format("|cff%s%d|r ms", GetThresholdHexColor(lagWorld, 1000, 500, 250, 100, 0), lagWorld)
+
+    myFrame.text:SetText(fpsText.." | |cFF99CC33H:|r"..lagHomeText.." | |cFF99CC33W:|r"..lagWorldText.." | "..myFrame.goldText.." | "..myFrame.tokenPriceText..myFrame.restedXpText)
+
+    C_Timer.After(FPS_UPDATERATE, UpdateFps)
+end
+
+myFrame:SetScript("OnEvent", function(self, event, isInitialLogin, isReloadingUi)
     if event == "VARIABLES_LOADED" then
         self.playerName = GetRealmName().."-"..UnitName("player")
 
@@ -61,36 +81,19 @@ myFrame:SetScript("OnEvent", function(self, event, ...)
         self.playerName = GetRealmName().."-"..UnitName("player")
 
         CalculateRestedXp(self)
-    elseif event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_MONEY" then
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        if isInitialLogin or isReloadingUi then
+            CalculateMoney(self)
+
+            C_Timer.After(1, UpdateFps)
+            C_Timer.After(1, UpdateTokenPrice)
+
+            self:UnregisterEvent("PLAYER_ENTERING_WORLD")
+        end
+    elseif event == "PLAYER_MONEY" then
         CalculateMoney(self)
     elseif event == "PLAYER_XP_UPDATE" then
         CalculateRestedXp(self)
-    end
-end)
-
-FPS_UPDATERATE = 1.0
-TOKEN_UPDATERATE = 5 * 60 * 1.0
-myFrame:SetScript("OnUpdate", function(self, elapsed)
-    self.fpsLastUpdate = self.fpsLastUpdate + elapsed
-    self.tokenLastUpdate = self.tokenLastUpdate + elapsed
-
-    if (self.fpsLastUpdate >= FPS_UPDATERATE) then
-        local fps = floor(GetFramerate() + 0.5)
-        local fpsText = format("|cff%s%d|r fps", GetThresholdHexColor(fps / 60), fps)
-                    
-        local _, _, lagHome, lagWorld = GetNetStats()
-        local lagHomeText = format("|cff%s%d|r ms", GetThresholdHexColor(lagHome, 1000, 500, 250, 100, 0), lagHome)
-        local lagWorldText = format("|cff%s%d|r ms", GetThresholdHexColor(lagWorld, 1000, 500, 250, 100, 0), lagWorld)
-
-        self.text:SetText(fpsText.." | |cFF99CC33H:|r"..lagHomeText.." | |cFF99CC33W:|r"..lagWorldText.." | "..self.goldText.." | "..self.tokenPriceText..self.restedXpText)
-
-        self.fpsLastUpdate = 0
-    end
-
-    if (self.tokenLastUpdate >= TOKEN_UPDATERATE) then
-        self.tokenPriceText = CalculateTokenPrice(self.totalMoney)
-
-        self.tokenLastUpdate = 0
     end
 end)
 
@@ -98,11 +101,11 @@ myFrame:SetScript("OnEnter", function(self)
     GameTooltip:ClearLines()
     GameTooltip:SetOwner(self or UIParent, "ANCHOR_LEFT")
     GameTooltip:AddLine("Gold Balance")
-    GameTooltip:AddDoubleLine("Total:", GetCoinTextureStringExt(self.totalMoney), 1, 1, 1, 1, 1, 1)
-    GameTooltip:AddDoubleLine("Current Month: ", GetCoinTextureStringExt(tonumber(BIB_SavedVars["CurrentMonthMoney"])), 1, 1, 1, 1, 1, 1)
-    GameTooltip:AddDoubleLine("Previous Month: ", GetCoinTextureStringExt(tonumber(BIB_SavedVars["PreviousMonthMoney"])), 1, 1, 1, 1, 1, 1)
-    GameTooltip:AddDoubleLine("Average Month: ", GetCoinTextureStringExt(self.averageMoneyMonth), 1, 1, 1, 1, 1, 1)
-    GameTooltip:AddDoubleLine("Average Day: ", GetCoinTextureStringExt(self.averageMoneyDay), 1, 1, 1, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Total:", GetMoneyString(self.totalMoney, true), 1, 1, 1, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Current Month: ", GetMoneyString(tonumber(BIB_SavedVars["CurrentMonthMoney"]), true), 1, 1, 1, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Previous Month: ", GetMoneyString(tonumber(BIB_SavedVars["PreviousMonthMoney"]), true), 1, 1, 1, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Average Month: ", GetMoneyString(self.averageMoneyMonth, true), 1, 1, 1, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Average Day: ", GetMoneyString(self.averageMoneyDay, true), 1, 1, 1, 1, 1, 1)
     GameTooltip:Show()
 end)
 
@@ -115,7 +118,7 @@ function CalculateTokenPrice(totalMoney)
     local tokenPrice = C_WowTokenPublic.GetCurrentMarketPrice()
 
     if tokenPrice and tokenPrice > 0 then
-        tokenPrice = GetCoinTextureStringExt(tokenPrice) .. " ("..math.floor(totalMoney / tokenPrice) ..")"
+        tokenPrice = GetMoneyString(tokenPrice, true) .. " ("..math.floor(totalMoney / tokenPrice) ..")"
     else
         tokenPrice = "N/A"
     end
@@ -142,7 +145,7 @@ function CalculateMoney(self)
         self.totalMoney = self.totalMoney + tonumber(money)
     end
     
-    self.goldText = GetCoinTextureStringExt(math.floor(self.totalMoney / 10000) * 10000)
+    self.goldText = GetMoneyString((math.floor(self.totalMoney / 10000) * 10000), true)
 end
 
 function CalculateRestedXp(self)
@@ -246,22 +249,5 @@ function GetThresholdPercentage(quality, ...)
 
         local value = select(n, ...)
         return ((n-2) + (quality - last) / (value - last)) / (n-1)
-    end
-end
-
-function AddCommas(pre, post)
-    return pre..post:reverse():gsub("(%d%d%d)","%1"..LARGE_NUMBER_SEPERATOR):reverse()
-end
-function SplitDecimal(str)
-    return str:gsub("^(%d)(%d+)", AddCommas)
-end
-function ReformatNumberString(str)
-    return str:gsub("[%d%.]+", SplitDecimal)
-end
-function GetCoinTextureStringExt(money)
-    if money >= 0 then
-        return ReformatNumberString(GetCoinTextureString(money))
-    else
-        return "-"..ReformatNumberString(GetCoinTextureString(money * -1))
     end
 end

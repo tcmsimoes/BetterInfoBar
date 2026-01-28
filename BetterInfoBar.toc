@@ -2,7 +2,7 @@
 ## Title: BetterInfoBar
 ## Category-enUS: Better UI
 ## IconTexture: 618858
-## Notes: FPS, Latency and total money of all characters in a realm
+## Notes: FPS, Latency and total money of all characters
 ## Author: Banksy
 ## SavedVariables: BIB_SavedVars
 
