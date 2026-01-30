@@ -32,7 +32,7 @@ myFrame.goldText = ""
 myFrame.tokenPriceText = ""
 myFrame.restedXpText = ""
 
-BIB_SavedVars = {}
+BIB_SavedVars = BIB_SavedVars or {}
 
 local FPS_UPDATERATE = 0.5
 local TOKEN_UPDATE_RATE = 5 * 60
@@ -56,7 +56,7 @@ local function UpdateFps()
     C_Timer.After(FPS_UPDATERATE, UpdateFps)
 end
 
-myFrame:SetScript("OnEvent", function(self, event, isInitialLogin, isReloadingUi)
+myFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "VARIABLES_LOADED" then
         self.playerName = GetRealmName().."-"..UnitName("player")
 
@@ -82,6 +82,7 @@ myFrame:SetScript("OnEvent", function(self, event, isInitialLogin, isReloadingUi
 
         CalculateRestedXp(self)
     elseif event == "PLAYER_ENTERING_WORLD" then
+        local isInitialLogin, isReloadingUi = ...
         if isInitialLogin or isReloadingUi then
             CalculateMoney(self)
 
