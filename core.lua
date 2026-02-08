@@ -46,7 +46,7 @@ end
 local function UpdateFps()
     local fps = floor(GetFramerate() + 0.5)
     local fpsText = format("|cff%s%d|r fps", GetThresholdHexColor(fps / 60), fps)
-                
+
     local _, _, lagHome, lagWorld = GetNetStats()
     local lagHomeText = format("|cff%s%d|r ms", GetThresholdHexColor(lagHome, 1000, 500, 250, 100, 0), lagHome)
     local lagWorldText = format("|cff%s%d|r ms", GetThresholdHexColor(lagWorld, 1000, 500, 250, 100, 0), lagWorld)
@@ -145,7 +145,7 @@ function CalculateMoney(self)
     for character, money in pairs(BIB_SavedVars["Char"]) do
         self.totalMoney = self.totalMoney + tonumber(money)
     end
-    
+
     self.goldText = GetMoneyString((math.floor(self.totalMoney / 10000) * 10000), true)
 end
 
@@ -155,7 +155,7 @@ function CalculateRestedXp(self)
 
     if restedXp  then
         local restXpPer = math.floor(restedXp / UnitXPMax("player") * 100 + 0.5)
-    
+
         if restXpPer >= 1 then
             self.restedXpText = " | "..restXpPer.."%"
         end
@@ -166,7 +166,7 @@ function Initialize(self)
     if not self.initialized then
         local curDate = C_DateAndTime.GetCurrentCalendarTime()
         self.day, self.month = curDate.monthDay, curDate.month
-        
+
         if self.month > 0 and self.month <= 12 then
             self.initialized = true
 
