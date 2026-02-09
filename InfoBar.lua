@@ -1,9 +1,9 @@
 BIB_SavedVars = BIB_SavedVars or {}
 local SavedVars_Chars = nil
 local SavedVars_Player = nil
-local SavedVars_CurrentMonthMoney = nil
+local SavedVars_PreviousMoney = nil
 local SavedVars_PreviousMonthMoney = nil
-local SavedVars_CurrentMonth = nil
+local SavedVars_CurrentMonthMoney = nil
 
 local FPS_UPDATERATE = 0.5
 local TOKEN_UPDATE_RATE = 5 * 60
@@ -56,23 +56,23 @@ function BetterInfoBarFrameMixin:OnEvent(event, ...)
         SavedVars_Player["Money"] = SavedVars_Player["Money"] or 0
         SavedVars_Player["PlayTime"] = SavedVars_Player["PlayTime"] or 0
         SavedVars_Player["LevelPlayTime"] = SavedVars_Player["LevelPlayTime"] or 0
-        BIB_SavedVars["CurrentMonthMoney"] = BIB_SavedVars["CurrentMonthMoney"] or 0
-        SavedVars_CurrentMonthMoney = BIB_SavedVars["CurrentMonthMoney"]
-        BIB_SavedVars["PreviousMonthMoney"] = BIB_SavedVars["PreviousMonthMoney"] or 0
-        SavedVars_PreviousMonthMoney = BIB_SavedVars["PreviousMonthMoney"]
-        BIB_SavedVars["CurrentMonth"] = BIB_SavedVars["CurrentMonth"] or 0
-        SavedVars_CurrentMonth = BIB_SavedVars["CurrentMonth"]
+        BIB_SavedVars["PreviousMoney"] = BIB_SavedVars["PreviousMoney"] or {}
+        SavedVars_PreviousMoney = BIB_SavedVars["PreviousMoney"]
     elseif event == "PLAYER_ENTERING_WORLD" then
         local isInitialLogin, isReloadingUi = ...
         if isInitialLogin or isReloadingUi then
             local curDate = C_DateAndTime.GetCurrentCalendarTime()
-            self.day, self.month = curDate.monthDay, curDate.month
+            self.day, self.month, self.year = curDate.monthDay, curDate.month, curDate.year
             self.playerName = GetRealmName().."-"..UnitName("player")
 
-            if tonumber(SavedVars_CurrentMonth) ~= self.month then
-                SavedVars_CurrentMonth = self.month
-                SavedVars_PreviousMonthMoney = SavedVars_CurrentMonthMoney
-                SavedVars_CurrentMonthMoney = 0
+            SavedVars_PreviousMoney[self.year] = SavedVars_PreviousMoney[self.year] or {}
+            SavedVars_PreviousMoney[self.year][self.month] = SavedVars_PreviousMoney[self.year][self.month] or 0
+            SavedVars_CurrentMonthMoney = SavedVars_PreviousMoney[self.year][self.month]
+
+            if self.month > 1 then
+                SavedVars_PreviousMonthMoney = SavedVars_PreviousMoney[self.year][self.month - 1] or 0
+            else
+                SavedVars_PreviousMonthMoney = SavedVars_PreviousMoney[self.year - 1][12] or 0
             end
 
             self:CalculateRestedXp()
@@ -101,8 +101,8 @@ function BetterInfoBarFrameMixin:OnEnter()
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
     GameTooltip:AddLine("Gold Balance")
     GameTooltip:AddDoubleLine("Total:", GetMoneyString(self.totalMoney, true), 1, 1, 1, 1, 1, 1)
-    GameTooltip:AddDoubleLine("Current Month: ", GetMoneyString(tonumber(SavedVars_CurrentMonthMoney), true), 1, 1, 1, 1, 1, 1)
-    GameTooltip:AddDoubleLine("Previous Month: ", GetMoneyString(tonumber(SavedVars_PreviousMonthMoney), true), 1, 1, 1, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Current Month: ", GetMoneyString(SavedVars_CurrentMonthMoney.Gains, true), 1, 1, 1, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Previous Month: ", GetMoneyString(SavedVars_PreviousMonthMoney.Gains, true), 1, 1, 1, 1, 1, 1)
     GameTooltip:AddDoubleLine("Average Month: ", GetMoneyString(self.averageMoneyMonth, true), 1, 1, 1, 1, 1, 1)
     GameTooltip:AddDoubleLine("Average Day: ", GetMoneyString(self.averageMoneyDay, true), 1, 1, 1, 1, 1, 1)
     GameTooltip:AddLine("\nPlayed time")
@@ -146,19 +146,19 @@ function BetterInfoBarFrameMixin:UpdateTokenPrice()
 end
 
 function BetterInfoBarFrameMixin:CalculateMoney()
-    local moneyBefore = tonumber(SavedVars_Player.Money) or 0
+    local moneyBefore = SavedVars_Player.Money or 0
     local moneyAfter = GetMoney()
-
-    SavedVars_CurrentMonthMoney = tonumber(SavedVars_CurrentMonthMoney) + (moneyAfter - moneyBefore)
-
-    self.averageMoneyMonth = (tonumber(SavedVars_PreviousMonthMoney) + tonumber(SavedVars_CurrentMonthMoney)) / 2
-    self.averageMoneyDay = tonumber(SavedVars_CurrentMonthMoney) / self.day
 
     SavedVars_Player.Money = moneyAfter
 
+    SavedVars_CurrentMonthMoney.Gains = SavedVars_CurrentMonthMoney.Gains + (moneyAfter - moneyBefore)
+
+    self.averageMoneyMonth = (SavedVars_PreviousMonthMoney.Gains + SavedVars_CurrentMonthMoney.Gains) / 2
+    self.averageMoneyDay = SavedVars_CurrentMonthMoney.Gains / self.day
+
     self.totalMoney = 0
     for character, data in pairs(SavedVars_Chars) do
-        self.totalMoney = self.totalMoney + tonumber(data.Money)
+        self.totalMoney = self.totalMoney + data.Money
     end
 
     self.goldText = GetMoneyString((math.floor(self.totalMoney / 10000) * 10000), true)
@@ -186,8 +186,8 @@ function BetterInfoBarFrameMixin:CalculatePlayTime(totalTime, levelTime)
     self.playTime = 0
     self.levelPlayTime = 0
     for character, data in pairs(SavedVars_Chars) do
-        self.playTime = self.playTime + tonumber(data.PlayTime)
-        self.levelPlayTime = self.levelPlayTime + tonumber(data.LevelPlayTime)
+        self.playTime = self.playTime + data.PlayTime
+        self.levelPlayTime = self.levelPlayTime + data.LevelPlayTime
     end
 
     self.playTimeText = format("%s (%s)", FormatTimePlayed(self.playTime), FormatTimePlayed(self.levelPlayTime))
