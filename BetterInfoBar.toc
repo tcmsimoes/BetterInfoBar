@@ -6,4 +6,4 @@
 ## Author: Banksy
 ## SavedVariables: BIB_SavedVars
 
-core.lua
+InfoBar.xml

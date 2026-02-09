@@ -1,0 +1,35 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+    <Script file="InfoBar.lua"/>
+
+    <Frame name="BetterInfoBarFrame" parent="UIParent" inherits="BackdropTemplate" mixin="BetterInfoBarFrameMixin">
+        <Size x="500" y="22"/>
+
+        <Anchors>
+            <Anchor point="TOPLEFT" relativeTo="UIParent" relativePoint="BOTTOMLEFT">
+                <Offset x="32" y="22"/>
+            </Anchor>
+        </Anchors>
+
+        <Scripts>
+            <OnLoad method="OnLoad"/>
+            <OnEvent method="OnEvent"/>
+            <OnEnter method="OnEnter"/>
+            <OnLeave method="OnLeave"/>
+        </Scripts>
+
+        <KeyValues>
+            <KeyValue key="backdropInfo" value="BACKDROP_TUTORIAL_16_16" type="global"/>
+        </KeyValues>
+
+        <Layers>
+            <Layer level="ARTWORK">
+                <FontString parentKey="text" name="$parentText" inherits="GameFontNormalSmall">
+                    <Anchors>
+                        <Anchor point="CENTER"/>
+                    </Anchors>
+                </FontString>
+            </Layer>
+        </Layers>
+    </Frame>
+</Ui>

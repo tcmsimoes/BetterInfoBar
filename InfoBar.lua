@@ -1,0 +1,294 @@
+BIB_SavedVars = BIB_SavedVars or {}
+local SavedVars_Chars = nil
+local SavedVars_Player = nil
+local SavedVars_CurrentMonthMoney = nil
+local SavedVars_PreviousMonthMoney = nil
+local SavedVars_CurrentMonth = nil
+
+local FPS_UPDATERATE = 0.5
+local TOKEN_UPDATE_RATE = 5 * 60
+
+BetterInfoBarFrameMixin = {}
+
+function BetterInfoBarFrameMixin:OnLoad()
+    self.playerName = "_no_char_"
+    self.month = 0
+    self.day = 0
+    self.averageMoneyMonth = 0
+    self.averageMoneyDay = 0
+    self.totalMoney = 0
+    self.goldText = ""
+    self.tokenPriceText = "N/A"
+    self.restedXpText = ""
+    self.playTime = 0
+    self.levelPlayTime = 0
+    self.playTimeText = 0
+
+    local backdrop_header = {
+        bgFile = "Interface\\TutorialFrame\\TutorialFrameBackground",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true,
+        tileSize = 16,
+        edgeSize = 16,
+        insets = {left = 5, right = 5, top = 5, bottom = 5}
+    }
+    self:SetBackdrop(backdrop_header)
+    self:SetBackdropBorderColor(0.5, 0.5, 0.5)
+    self:SetBackdropColor(0.5, 0.5, 0.5, 1)
+
+    self:SetFrameStrata("BACKGROUND");
+
+    self:RegisterEvent("VARIABLES_LOADED")
+    self:RegisterEvent("PLAYER_ENTERING_WORLD")
+    self:RegisterEvent("PLAYER_MONEY")
+    self:RegisterEvent("PLAYER_XP_UPDATE")
+    self:RegisterEvent("TIME_PLAYED_MSG")
+end
+
+function BetterInfoBarFrameMixin:OnEvent(event, ...)
+    if event == "VARIABLES_LOADED" then
+        self.playerName = GetRealmName().."-"..UnitName("player")
+
+        BIB_SavedVars["Char"] = BIB_SavedVars["Char"] or {}
+        SavedVars_Chars = BIB_SavedVars["Char"]
+        SavedVars_Chars[self.playerName] = SavedVars_Chars[self.playerName] or {}
+        SavedVars_Player = SavedVars_Chars[self.playerName]
+        SavedVars_Player["Money"] = SavedVars_Player["Money"] or 0
+        SavedVars_Player["PlayTime"] = SavedVars_Player["PlayTime"] or 0
+        SavedVars_Player["LevelPlayTime"] = SavedVars_Player["LevelPlayTime"] or 0
+        BIB_SavedVars["CurrentMonthMoney"] = BIB_SavedVars["CurrentMonthMoney"] or 0
+        SavedVars_CurrentMonthMoney = BIB_SavedVars["CurrentMonthMoney"]
+        BIB_SavedVars["PreviousMonthMoney"] = BIB_SavedVars["PreviousMonthMoney"] or 0
+        SavedVars_PreviousMonthMoney = BIB_SavedVars["PreviousMonthMoney"]
+        BIB_SavedVars["CurrentMonth"] = BIB_SavedVars["CurrentMonth"] or 0
+        SavedVars_CurrentMonth = BIB_SavedVars["CurrentMonth"]
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        local isInitialLogin, isReloadingUi = ...
+        if isInitialLogin or isReloadingUi then
+            local curDate = C_DateAndTime.GetCurrentCalendarTime()
+            self.day, self.month = curDate.monthDay, curDate.month
+            self.playerName = GetRealmName().."-"..UnitName("player")
+
+            if tonumber(SavedVars_CurrentMonth) ~= self.month then
+                SavedVars_CurrentMonth = self.month
+                SavedVars_PreviousMonthMoney = SavedVars_CurrentMonthMoney
+                SavedVars_CurrentMonthMoney = 0
+            end
+
+            self:CalculateRestedXp()
+
+            self:CalculateMoney()
+
+            RequestTimePlayed()
+
+            C_Timer.NewTicker(FPS_UPDATERATE, function() self:UpdateFps() end)
+            C_Timer.NewTicker(TOKEN_UPDATE_RATE, function() self:UpdateTokenPrice() end)
+
+            self:UnregisterEvent("PLAYER_ENTERING_WORLD")
+        end
+    elseif event == "PLAYER_MONEY" then
+        self:CalculateMoney()
+    elseif event == "PLAYER_XP_UPDATE" then
+        self:CalculateRestedXp()
+    elseif event == "TIME_PLAYED_MSG" then
+        local totalTime, levelTime = ...
+        self:CalculatePlayTime(totalTime, levelTime)
+    end
+end
+
+function BetterInfoBarFrameMixin:OnEnter()
+    GameTooltip:ClearLines()
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine("Gold Balance")
+    GameTooltip:AddDoubleLine("Total:", GetMoneyString(self.totalMoney, true), 1, 1, 1, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Current Month: ", GetMoneyString(tonumber(SavedVars_CurrentMonthMoney), true), 1, 1, 1, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Previous Month: ", GetMoneyString(tonumber(SavedVars_PreviousMonthMoney), true), 1, 1, 1, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Average Month: ", GetMoneyString(self.averageMoneyMonth, true), 1, 1, 1, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Average Day: ", GetMoneyString(self.averageMoneyDay, true), 1, 1, 1, 1, 1, 1)
+    GameTooltip:AddLine("\nPlayed time")
+    GameTooltip:AddDoubleLine("Total: ", self.playTimeText, 1, 1, 1, 1, 1, 1)
+    GameTooltip:Show()
+end
+
+function BetterInfoBarFrameMixin:OnLeave()
+    GameTooltip:Hide()
+end
+
+local GetThresholdHexColor
+
+function BetterInfoBarFrameMixin:UpdateFps()
+    local fps = math.floor(GetFramerate() + 0.5)
+    local fpsText = format("|cff%s%d|r fps", GetThresholdHexColor(fps / 60), fps)
+
+    local _, _, lagHome, lagWorld = GetNetStats()
+    local lagHomeText = format("|cff%s%d|r ms", GetThresholdHexColor(lagHome, 1000, 500, 250, 100, 0), lagHome)
+    local lagWorldText = format("|cff%s%d|r ms", GetThresholdHexColor(lagWorld, 1000, 500, 250, 100, 0), lagWorld)
+
+    self.text:SetText(fpsText.." | |cFF99CC33H:|r"..lagHomeText.." | |cFF99CC33W:|r"..lagWorldText.." | "..self.goldText.." | "..self.tokenPriceText..self.restedXpText)
+end
+
+function BetterInfoBarFrameMixin:UpdateTokenPrice()
+    if UnitAffectingCombat("player") then return end
+
+    C_WowTokenPublic.UpdateMarketPrice()
+
+    C_Timer.After(2, function()
+        local tokenPrice = C_WowTokenPublic.GetCurrentMarketPrice()
+
+        if tokenPrice and tokenPrice > 0 then
+            tokenPrice = GetMoneyString(tokenPrice, true) .. " ("..math.floor(self.totalMoney / tokenPrice) ..")"
+        else
+            tokenPrice = "N/A"
+        end
+
+        self.tokenPriceText = tokenPrice
+    end)
+end
+
+function BetterInfoBarFrameMixin:CalculateMoney()
+    local moneyBefore = tonumber(SavedVars_Player.Money) or 0
+    local moneyAfter = GetMoney()
+
+    SavedVars_CurrentMonthMoney = tonumber(SavedVars_CurrentMonthMoney) + (moneyAfter - moneyBefore)
+
+    self.averageMoneyMonth = (tonumber(SavedVars_PreviousMonthMoney) + tonumber(SavedVars_CurrentMonthMoney)) / 2
+    self.averageMoneyDay = tonumber(SavedVars_CurrentMonthMoney) / self.day
+
+    SavedVars_Player.Money = moneyAfter
+
+    self.totalMoney = 0
+    for character, data in pairs(SavedVars_Chars) do
+        self.totalMoney = self.totalMoney + tonumber(data.Money)
+    end
+
+    self.goldText = GetMoneyString((math.floor(self.totalMoney / 10000) * 10000), true)
+end
+
+function BetterInfoBarFrameMixin:CalculateRestedXp()
+    local restedXp = GetXPExhaustion()
+    self.restedXpText = ""
+
+    if restedXp  then
+        local restXpPer = math.floor(restedXp / UnitXPMax("player") * 100 + 0.5)
+
+        if restXpPer >= 1 then
+            self.restedXpText = " | "..restXpPer.."%"
+        end
+    end
+end
+
+local FormatTimePlayed
+
+function BetterInfoBarFrameMixin:CalculatePlayTime(totalTime, levelTime)
+    SavedVars_Player.PlayTime = totalTime
+    SavedVars_Player.LevelPlayTime = levelTime
+
+    self.playTime = 0
+    self.levelPlayTime = 0
+    for character, data in pairs(SavedVars_Chars) do
+        self.playTime = self.playTime + tonumber(data.PlayTime)
+        self.levelPlayTime = self.levelPlayTime + tonumber(data.LevelPlayTime)
+    end
+
+    self.playTimeText = format("%s (%s)", FormatTimePlayed(self.playTime), FormatTimePlayed(self.levelPlayTime))
+end
+
+
+FormatTimePlayed = function(totalSeconds)
+    local years = math.floor(totalSeconds / 31536000)  -- 365 days * 24 hours * 3600 seconds
+    local remainingAfterYears = totalSeconds % 31536000
+
+    local days = math.floor(remainingAfterYears / 86400)  -- 24 hours * 3600 seconds
+    local remainingAfterDays = remainingAfterYears % 86400
+
+    local hours = math.floor(remainingAfterDays / 3600)
+    local minutes = math.floor((remainingAfterDays % 3600) / 60)
+
+    local timeString = ""
+    if years > 0 then
+        timeString = string.format("%dy %dd %dh", years, days, hours)
+    elseif days > 0 then
+        timeString = string.format("%dd %dh %dm", days, hours, minutes)
+    elseif hours > 0 then
+        timeString = string.format("%dh %dm", hours, minutes)
+    else
+        timeString = string.format("%dm", minutes)
+    end
+
+    return timeString
+end
+
+
+local function GetThresholdPercentage(quality, ...)
+    local n = select('#', ...)
+    if n <= 1 then
+        return GetThresholdPercentage(quality, 0, ... or 1)
+    end
+
+    local worst = ...
+    local best = select(n, ...)
+
+    if worst == best and quality == worst then
+        return 0.5
+    end
+
+    if worst <= best then
+        if quality <= worst then
+            return 0
+        elseif quality >= best then
+            return 1
+        end
+        local last = worst
+        for i = 2, n-1 do
+            local value = select(i, ...)
+            if quality <= value then
+                return ((i-2) + (quality - last) / (value - last)) / (n-1)
+            end
+            last = value
+        end
+
+        local value = select(n, ...)
+        return ((n-2) + (quality - last) / (value - last)) / (n-1)
+    else
+        if quality >= worst then
+            return 0
+        elseif quality <= best then
+            return 1
+        end
+        local last = worst
+        for i = 2, n-1 do
+            local value = select(i, ...)
+            if quality >= value then
+                return ((i-2) + (quality - last) / (value - last)) / (n-1)
+            end
+            last = value
+        end
+
+        local value = select(n, ...)
+        return ((n-2) + (quality - last) / (value - last)) / (n-1)
+    end
+end
+
+local function GetThresholdColor(quality, ...)
+    local inf = 10000000
+    if quality ~= quality or quality == inf or quality == -inf then
+        return 1, 1, 1
+    end
+
+    local percent = GetThresholdPercentage(quality, ...)
+
+    if percent <= 0 then
+        return 1, 0, 0
+    elseif percent <= 0.5 then
+        return 1, percent*2, 0
+    elseif percent >= 1 then
+        return 0, 1, 0
+    else
+        return 2 - percent*2, 1, 0
+    end
+end
+
+GetThresholdHexColor = function(quality, ...)
+    local r, g, b = GetThresholdColor(quality, ...)
+    return string.format("%02x%02x%02x", r*255, g*255, b*255)
+end
