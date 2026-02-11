@@ -14,6 +14,7 @@ function BetterInfoBarFrameMixin:OnLoad()
     self.playerName = "_no_char_"
     self.month = 0
     self.day = 0
+    self.year = 0
     self.averageMoneyMonth = 0
     self.averageMoneyDay = 0
     self.totalMoney = 0
@@ -22,7 +23,9 @@ function BetterInfoBarFrameMixin:OnLoad()
     self.restedXpText = ""
     self.playTime = 0
     self.levelPlayTime = 0
-    self.playTimeText = 0
+    self.playTimeText = ""
+    self.fpsTicker = nil
+    self.tokenTicker = nil
 
     local backdrop_header = {
         bgFile = "Interface\\TutorialFrame\\TutorialFrameBackground",
@@ -36,7 +39,7 @@ function BetterInfoBarFrameMixin:OnLoad()
     self:SetBackdropBorderColor(0.5, 0.5, 0.5)
     self:SetBackdropColor(0.5, 0.5, 0.5, 1)
 
-    self:SetFrameStrata("BACKGROUND");
+    self:SetFrameStrata("BACKGROUND")
 
     self:RegisterEvent("VARIABLES_LOADED")
     self:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -51,11 +54,14 @@ function BetterInfoBarFrameMixin:OnEvent(event, ...)
         SavedVars_Chars = BIB_SavedVars["Char"]
         BIB_SavedVars["PreviousMoney"] = BIB_SavedVars["PreviousMoney"] or {}
         SavedVars_PreviousMoney = BIB_SavedVars["PreviousMoney"]
+
     elseif event == "PLAYER_ENTERING_WORLD" then
         local isInitialLogin, isReloadingUi = ...
         if isInitialLogin or isReloadingUi then
             local curDate = C_DateAndTime.GetCurrentCalendarTime()
-            self.day, self.month, self.year = curDate.monthDay, curDate.month, curDate.year
+            self.day = tonumber(curDate.monthDay)
+            self.month = tonumber(curDate.month)
+            self.year = tonumber(curDate.year)
             self.playerName = GetRealmName().."-"..UnitName("player")
 
             SavedVars_Chars[self.playerName] = SavedVars_Chars[self.playerName] or {}
@@ -83,15 +89,21 @@ function BetterInfoBarFrameMixin:OnEvent(event, ...)
 
             RequestTimePlayed()
 
-            C_Timer.NewTicker(FPS_UPDATERATE, function() self:UpdateFps() end)
-            C_Timer.NewTicker(TOKEN_UPDATE_RATE, function() self:UpdateTokenPrice() end)
+            if self.fpsTicker then self.fpsTicker:Cancel() end
+            if self.tokenTicker then self.tokenTicker:Cancel() end
+
+            self.fpsTicker = C_Timer.NewTicker(FPS_UPDATERATE, function() self:UpdateFps() end)
+            self.tokenTicker = C_Timer.NewTicker(TOKEN_UPDATE_RATE, function() self:UpdateTokenPrice() end)
 
             self:UnregisterEvent("PLAYER_ENTERING_WORLD")
         end
+
     elseif event == "PLAYER_MONEY" then
         self:CalculateMoney()
+
     elseif event == "PLAYER_XP_UPDATE" then
         self:CalculateRestedXp()
+
     elseif event == "TIME_PLAYED_MSG" then
         local totalTime, levelTime = ...
         self:CalculatePlayTime(totalTime, levelTime)
@@ -147,7 +159,11 @@ function BetterInfoBarFrameMixin:UpdateTokenPrice()
     end)
 end
 
+local CalculateAverageMonthlyGains
+
 function BetterInfoBarFrameMixin:CalculateMoney()
+    if not SavedVars_Player then return end
+
     local moneyBefore = SavedVars_Player.Money or 0
     local moneyAfter = GetMoney()
 
@@ -155,11 +171,11 @@ function BetterInfoBarFrameMixin:CalculateMoney()
 
     SavedVars_CurrentMonthMoney.Gains = SavedVars_CurrentMonthMoney.Gains + (moneyAfter - moneyBefore)
 
-    self.averageMoneyMonth = (SavedVars_PreviousMonthMoney.Gains + SavedVars_CurrentMonthMoney.Gains) / 2
+    self.averageMoneyMonth = CalculateAverageMonthlyGains(SavedVars_PreviousMoney)
     self.averageMoneyDay = SavedVars_CurrentMonthMoney.Gains / self.day
 
     self.totalMoney = 0
-    for character, data in pairs(SavedVars_Chars) do
+    for _, data in pairs(SavedVars_Chars) do
         self.totalMoney = self.totalMoney + data.Money
     end
 
@@ -170,7 +186,7 @@ function BetterInfoBarFrameMixin:CalculateRestedXp()
     local restedXp = GetXPExhaustion()
     self.restedXpText = ""
 
-    if restedXp  then
+    if restedXp then
         local restXpPer = math.floor(restedXp / UnitXPMax("player") * 100 + 0.5)
 
         if restXpPer >= 1 then
@@ -187,7 +203,7 @@ function BetterInfoBarFrameMixin:CalculatePlayTime(totalTime, levelTime)
 
     self.playTime = 0
     self.levelPlayTime = 0
-    for character, data in pairs(SavedVars_Chars) do
+    for _, data in pairs(SavedVars_Chars) do
         self.playTime = self.playTime + data.PlayTime
         self.levelPlayTime = self.levelPlayTime + data.LevelPlayTime
     end
@@ -197,29 +213,42 @@ end
 
 
 FormatTimePlayed = function(totalSeconds)
-    local years = math.floor(totalSeconds / 31536000)  -- 365 days * 24 hours * 3600 seconds
+    local years = math.floor(totalSeconds / 31536000) -- 365 days * 24 hours * 3600 seconds
     local remainingAfterYears = totalSeconds % 31536000
 
-    local days = math.floor(remainingAfterYears / 86400)  -- 24 hours * 3600 seconds
+    local days = math.floor(remainingAfterYears / 86400) -- 24 hours * 3600 seconds
     local remainingAfterDays = remainingAfterYears % 86400
 
     local hours = math.floor(remainingAfterDays / 3600)
     local minutes = math.floor((remainingAfterDays % 3600) / 60)
 
-    local timeString = ""
     if years > 0 then
-        timeString = string.format("%dy %dd %dh", years, days, hours)
+        return string.format("%dy %dd %dh", years, days, hours)
     elseif days > 0 then
-        timeString = string.format("%dd %dh %dm", days, hours, minutes)
+        return string.format("%dd %dh %dm", days, hours, minutes)
     elseif hours > 0 then
-        timeString = string.format("%dh %dm", hours, minutes)
+        return string.format("%dh %dm", hours, minutes)
     else
-        timeString = string.format("%dm", minutes)
+        return string.format("%dm", minutes)
     end
-
-    return timeString
 end
 
+
+CalculateAverageMonthlyGains = function(savedVarsPreviousMoney)
+    local total = 0
+    local count = 0
+
+    for _, months in pairs(savedVarsPreviousMoney) do
+        for _, monthData in pairs(months) do
+            if monthData.Gains and monthData.Gains ~= 0 then
+                total = total + monthData.Gains
+                count = count + 1
+            end
+        end
+    end
+
+    return count > 0 and (total / count) or 0
+end
 
 local function GetThresholdPercentage(quality, ...)
     local n = select('#', ...)
@@ -235,39 +264,31 @@ local function GetThresholdPercentage(quality, ...)
     end
 
     if worst <= best then
-        if quality <= worst then
-            return 0
-        elseif quality >= best then
-            return 1
-        end
+        if quality <= worst then return 0 end
+        if quality >= best  then return 1 end
         local last = worst
-        for i = 2, n-1 do
+        for i = 2, n - 1 do
             local value = select(i, ...)
             if quality <= value then
-                return ((i-2) + (quality - last) / (value - last)) / (n-1)
+                return ((i - 2) + (quality - last) / (value - last)) / (n - 1)
             end
             last = value
         end
-
         local value = select(n, ...)
-        return ((n-2) + (quality - last) / (value - last)) / (n-1)
+        return ((n - 2) + (quality - last) / (value - last)) / (n - 1)
     else
-        if quality >= worst then
-            return 0
-        elseif quality <= best then
-            return 1
-        end
+        if quality >= worst then return 0 end
+        if quality <= best  then return 1 end
         local last = worst
-        for i = 2, n-1 do
+        for i = 2, n - 1 do
             local value = select(i, ...)
             if quality >= value then
-                return ((i-2) + (quality - last) / (value - last)) / (n-1)
+                return ((i - 2) + (quality - last) / (value - last)) / (n - 1)
             end
             last = value
         end
-
         local value = select(n, ...)
-        return ((n-2) + (quality - last) / (value - last)) / (n-1)
+        return ((n - 2) + (quality - last) / (value - last)) / (n - 1)
     end
 end
 
@@ -282,15 +303,15 @@ local function GetThresholdColor(quality, ...)
     if percent <= 0 then
         return 1, 0, 0
     elseif percent <= 0.5 then
-        return 1, percent*2, 0
+        return 1, percent * 2, 0
     elseif percent >= 1 then
         return 0, 1, 0
     else
-        return 2 - percent*2, 1, 0
+        return 2 - percent * 2, 1, 0
     end
 end
 
 GetThresholdHexColor = function(quality, ...)
     local r, g, b = GetThresholdColor(quality, ...)
-    return string.format("%02x%02x%02x", r*255, g*255, b*255)
+    return string.format("%02x%02x%02x", r * 255, g * 255, b * 255)
 end
