@@ -47,15 +47,8 @@ end
 
 function BetterInfoBarFrameMixin:OnEvent(event, ...)
     if event == "VARIABLES_LOADED" then
-        self.playerName = GetRealmName().."-"..UnitName("player")
-
         BIB_SavedVars["Char"] = BIB_SavedVars["Char"] or {}
         SavedVars_Chars = BIB_SavedVars["Char"]
-        SavedVars_Chars[self.playerName] = SavedVars_Chars[self.playerName] or {}
-        SavedVars_Player = SavedVars_Chars[self.playerName]
-        SavedVars_Player["Money"] = SavedVars_Player["Money"] or 0
-        SavedVars_Player["PlayTime"] = SavedVars_Player["PlayTime"] or 0
-        SavedVars_Player["LevelPlayTime"] = SavedVars_Player["LevelPlayTime"] or 0
         BIB_SavedVars["PreviousMoney"] = BIB_SavedVars["PreviousMoney"] or {}
         SavedVars_PreviousMoney = BIB_SavedVars["PreviousMoney"]
     elseif event == "PLAYER_ENTERING_WORLD" then
@@ -65,15 +58,24 @@ function BetterInfoBarFrameMixin:OnEvent(event, ...)
             self.day, self.month, self.year = curDate.monthDay, curDate.month, curDate.year
             self.playerName = GetRealmName().."-"..UnitName("player")
 
+            SavedVars_Chars[self.playerName] = SavedVars_Chars[self.playerName] or {}
+            SavedVars_Player = SavedVars_Chars[self.playerName]
+            SavedVars_Player.Money = SavedVars_Player.Money or 0
+            SavedVars_Player.PlayTime = SavedVars_Player.PlayTime or 0
+            SavedVars_Player.LevelPlayTime = SavedVars_Player.LevelPlayTime or 0
             SavedVars_PreviousMoney[self.year] = SavedVars_PreviousMoney[self.year] or {}
-            SavedVars_PreviousMoney[self.year][self.month] = SavedVars_PreviousMoney[self.year][self.month] or 0
+            SavedVars_PreviousMoney[self.year][self.month] = SavedVars_PreviousMoney[self.year][self.month] or {}
             SavedVars_CurrentMonthMoney = SavedVars_PreviousMoney[self.year][self.month]
+            SavedVars_CurrentMonthMoney.Gains = SavedVars_CurrentMonthMoney.Gains or 0
 
             if self.month > 1 then
-                SavedVars_PreviousMonthMoney = SavedVars_PreviousMoney[self.year][self.month - 1] or 0
+                SavedVars_PreviousMoney[self.year][self.month - 1] = SavedVars_PreviousMoney[self.year][self.month - 1] or {}
+                SavedVars_PreviousMonthMoney = SavedVars_PreviousMoney[self.year][self.month - 1]
             else
-                SavedVars_PreviousMonthMoney = SavedVars_PreviousMoney[self.year - 1][12] or 0
+                local prevYear = SavedVars_PreviousMoney[self.year - 1]
+                SavedVars_PreviousMonthMoney = (prevYear and prevYear[12]) or {}
             end
+            SavedVars_PreviousMonthMoney.Gains = SavedVars_PreviousMonthMoney.Gains or 0
 
             self:CalculateRestedXp()
 
