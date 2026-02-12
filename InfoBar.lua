@@ -8,9 +8,9 @@ local SavedVars_CurrentMonthMoney = nil
 local FPS_UPDATERATE = 0.5
 local TOKEN_UPDATE_RATE = 5 * 60
 
-BetterInfoBarFrameMixin = {}
+InfoBarFrameMixin = {}
 
-function BetterInfoBarFrameMixin:OnLoad()
+function InfoBarFrameMixin:OnLoad()
     self.playerName = "_no_char_"
     self.month = 0
     self.day = 0
@@ -48,7 +48,7 @@ function BetterInfoBarFrameMixin:OnLoad()
     self:RegisterEvent("TIME_PLAYED_MSG")
 end
 
-function BetterInfoBarFrameMixin:OnEvent(event, ...)
+function InfoBarFrameMixin:OnEvent(event, ...)
     if event == "VARIABLES_LOADED" then
         BIB_SavedVars["Char"] = BIB_SavedVars["Char"] or {}
         SavedVars_Chars = BIB_SavedVars["Char"]
@@ -110,7 +110,7 @@ function BetterInfoBarFrameMixin:OnEvent(event, ...)
     end
 end
 
-function BetterInfoBarFrameMixin:OnEnter()
+function InfoBarFrameMixin:OnEnter()
     GameTooltip:ClearLines()
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
     GameTooltip:AddLine("Gold Balance")
@@ -124,13 +124,13 @@ function BetterInfoBarFrameMixin:OnEnter()
     GameTooltip:Show()
 end
 
-function BetterInfoBarFrameMixin:OnLeave()
+function InfoBarFrameMixin:OnLeave()
     GameTooltip:Hide()
 end
 
 local GetThresholdHexColor
 
-function BetterInfoBarFrameMixin:UpdateFps()
+function InfoBarFrameMixin:UpdateFps()
     local fps = math.floor(GetFramerate() + 0.5)
     local fpsText = format("|cff%s%d|r fps", GetThresholdHexColor(fps / 60), fps)
 
@@ -141,7 +141,7 @@ function BetterInfoBarFrameMixin:UpdateFps()
     self.text:SetText(fpsText.." | |cFF99CC33H:|r"..lagHomeText.." | |cFF99CC33W:|r"..lagWorldText.." | "..self.goldText.." | "..self.tokenPriceText..self.restedXpText)
 end
 
-function BetterInfoBarFrameMixin:UpdateTokenPrice()
+function InfoBarFrameMixin:UpdateTokenPrice()
     if UnitAffectingCombat("player") then return end
 
     C_WowTokenPublic.UpdateMarketPrice()
@@ -150,7 +150,7 @@ function BetterInfoBarFrameMixin:UpdateTokenPrice()
         local tokenPrice = C_WowTokenPublic.GetCurrentMarketPrice()
 
         if tokenPrice and tokenPrice > 0 then
-            tokenPrice = GetMoneyString(tokenPrice, true) .. " ("..math.floor(self.totalMoney / tokenPrice) ..")"
+            tokenPrice = GetMoneyString(tokenPrice, true).." ("..math.floor(self.totalMoney / tokenPrice) ..")"
         else
             tokenPrice = "N/A"
         end
@@ -161,7 +161,7 @@ end
 
 local CalculateAverageMonthlyGains
 
-function BetterInfoBarFrameMixin:CalculateMoney()
+function InfoBarFrameMixin:CalculateMoney()
     if not SavedVars_Player then return end
 
     local moneyBefore = SavedVars_Player.Money or 0
@@ -182,7 +182,7 @@ function BetterInfoBarFrameMixin:CalculateMoney()
     self.goldText = GetMoneyString((math.floor(self.totalMoney / 10000) * 10000), true)
 end
 
-function BetterInfoBarFrameMixin:CalculateRestedXp()
+function InfoBarFrameMixin:CalculateRestedXp()
     local restedXp = GetXPExhaustion()
     self.restedXpText = ""
 
@@ -197,7 +197,7 @@ end
 
 local FormatTimePlayed
 
-function BetterInfoBarFrameMixin:CalculatePlayTime(totalTime, levelTime)
+function InfoBarFrameMixin:CalculatePlayTime(totalTime, levelTime)
     SavedVars_Player.PlayTime = totalTime
     SavedVars_Player.LevelPlayTime = levelTime
 
