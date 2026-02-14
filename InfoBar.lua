@@ -1,12 +1,15 @@
+local FPS_UPDATERATE = 0.5
+local TOKEN_UPDATE_RATE = 5 * 60
+
+
+
 BIB_SavedVars = BIB_SavedVars or {}
 local SavedVars_Chars = nil
 local SavedVars_Player = nil
-local SavedVars_PreviousMoney = nil
-local SavedVars_PreviousMonthMoney = nil
-local SavedVars_CurrentMonthMoney = nil
+local SavedVars_History = nil
+local SavedVars_PreviousMonth = nil
+local SavedVars_CurrentMonth = nil
 
-local FPS_UPDATERATE = 0.5
-local TOKEN_UPDATE_RATE = 5 * 60
 
 InfoBarFrameMixin = {}
 
@@ -46,15 +49,15 @@ function InfoBarFrameMixin:OnLoad()
     self:RegisterEvent("PLAYER_MONEY")
     self:RegisterEvent("PLAYER_XP_UPDATE")
     self:RegisterEvent("TIME_PLAYED_MSG")
+    self:RegisterEvent("PLAYER_LOGOUT")
 end
 
 function InfoBarFrameMixin:OnEvent(event, ...)
     if event == "VARIABLES_LOADED" then
         BIB_SavedVars["Char"] = BIB_SavedVars["Char"] or {}
         SavedVars_Chars = BIB_SavedVars["Char"]
-        BIB_SavedVars["PreviousMoney"] = BIB_SavedVars["PreviousMoney"] or {}
-        SavedVars_PreviousMoney = BIB_SavedVars["PreviousMoney"]
-
+        BIB_SavedVars["History"] = BIB_SavedVars["History"] or {}
+        SavedVars_History = BIB_SavedVars["History"]
     elseif event == "PLAYER_ENTERING_WORLD" then
         local isInitialLogin, isReloadingUi = ...
         if isInitialLogin or isReloadingUi then
@@ -69,19 +72,22 @@ function InfoBarFrameMixin:OnEvent(event, ...)
             SavedVars_Player.Money = SavedVars_Player.Money or 0
             SavedVars_Player.PlayTime = SavedVars_Player.PlayTime or 0
             SavedVars_Player.LevelPlayTime = SavedVars_Player.LevelPlayTime or 0
-            SavedVars_PreviousMoney[self.year] = SavedVars_PreviousMoney[self.year] or {}
-            SavedVars_PreviousMoney[self.year][self.month] = SavedVars_PreviousMoney[self.year][self.month] or {}
-            SavedVars_CurrentMonthMoney = SavedVars_PreviousMoney[self.year][self.month]
-            SavedVars_CurrentMonthMoney.Gains = SavedVars_CurrentMonthMoney.Gains or 0
+            SavedVars_History[self.year] = SavedVars_History[self.year] or {}
+            SavedVars_History[self.year][self.month] = SavedVars_History[self.year][self.month] or {}
+            SavedVars_CurrentMonth = SavedVars_History[self.year][self.month]
+            SavedVars_CurrentMonth.Gains = SavedVars_CurrentMonth.Gains or 0
+            SavedVars_CurrentMonth.Token = SavedVars_CurrentMonth.Token or 0
+            SavedVars_CurrentMonth.PlayTime = SavedVars_CurrentMonth.PlayTime or 0
 
             if self.month > 1 then
-                SavedVars_PreviousMoney[self.year][self.month - 1] = SavedVars_PreviousMoney[self.year][self.month - 1] or {}
-                SavedVars_PreviousMonthMoney = SavedVars_PreviousMoney[self.year][self.month - 1]
+                SavedVars_History[self.year][self.month - 1] = SavedVars_History[self.year][self.month - 1] or {}
+                SavedVars_PreviousMonth = SavedVars_History[self.year][self.month - 1]
             else
-                local prevYear = SavedVars_PreviousMoney[self.year - 1]
-                SavedVars_PreviousMonthMoney = (prevYear and prevYear[12]) or {}
+                local prevYear = SavedVars_History[self.year - 1]
+                SavedVars_PreviousMonth = (prevYear and prevYear[12]) or {}
             end
-            SavedVars_PreviousMonthMoney.Gains = SavedVars_PreviousMonthMoney.Gains or 0
+            SavedVars_PreviousMonth.Gains = SavedVars_PreviousMonth.Gains or 0
+            SavedVars_PreviousMonth.PlayTime = SavedVars_PreviousMonth.PlayTime or 0
 
             self:CalculateRestedXp()
 
@@ -97,13 +103,12 @@ function InfoBarFrameMixin:OnEvent(event, ...)
 
             self:UnregisterEvent("PLAYER_ENTERING_WORLD")
         end
-
     elseif event == "PLAYER_MONEY" then
         self:CalculateMoney()
-
     elseif event == "PLAYER_XP_UPDATE" then
         self:CalculateRestedXp()
-
+    elseif event == "PLAYER_LOGOUT" then
+        self:RequestTimePlayed()
     elseif event == "TIME_PLAYED_MSG" then
         local totalTime, levelTime = ...
         self:CalculatePlayTime(totalTime, levelTime)
@@ -115,12 +120,14 @@ function InfoBarFrameMixin:OnEnter()
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
     GameTooltip:AddLine("Gold Balance")
     GameTooltip:AddDoubleLine("Total:", GetMoneyString(self.totalMoney, true), 1, 1, 1, 1, 1, 1)
-    GameTooltip:AddDoubleLine("Current Month: ", GetMoneyString(SavedVars_CurrentMonthMoney.Gains, true), 1, 1, 1, 1, 1, 1)
-    GameTooltip:AddDoubleLine("Previous Month: ", GetMoneyString(SavedVars_PreviousMonthMoney.Gains, true), 1, 1, 1, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Current Month: ", GetMoneyString(SavedVars_CurrentMonth.Gains, true), 1, 1, 1, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Previous Month: ", GetMoneyString(SavedVars_PreviousMonth.Gains, true), 1, 1, 1, 1, 1, 1)
     GameTooltip:AddDoubleLine("Average Month: ", GetMoneyString(self.averageMoneyMonth, true), 1, 1, 1, 1, 1, 1)
     GameTooltip:AddDoubleLine("Average Day: ", GetMoneyString(self.averageMoneyDay, true), 1, 1, 1, 1, 1, 1)
     GameTooltip:AddLine("\nPlayed time")
-    GameTooltip:AddDoubleLine("Total: ", self.playTimeText, 1, 1, 1, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Total: ", self:FormatTimePlayed(self.playTime), 1, 1, 1, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Current Month: ", self:FormatTimePlayed(SavedVars_CurrentMonth.PlayTime), 1, 1, 1, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Previous Month: ", self:FormatTimePlayed(SavedVars_PreviousMonth.PlayTime), 1, 1, 1, 1, 1, 1)
     GameTooltip:Show()
 end
 
@@ -128,15 +135,13 @@ function InfoBarFrameMixin:OnLeave()
     GameTooltip:Hide()
 end
 
-local GetThresholdHexColor
-
 function InfoBarFrameMixin:UpdateFps()
     local fps = math.floor(GetFramerate() + 0.5)
-    local fpsText = format("|cff%s%d|r fps", GetThresholdHexColor(fps / 60), fps)
+    local fpsText = format("|cff%s%d|r fps", self:GetThresholdHexColor(fps / 60), fps)
 
     local _, _, lagHome, lagWorld = GetNetStats()
-    local lagHomeText = format("|cff%s%d|r ms", GetThresholdHexColor(lagHome, 1000, 500, 250, 100, 0), lagHome)
-    local lagWorldText = format("|cff%s%d|r ms", GetThresholdHexColor(lagWorld, 1000, 500, 250, 100, 0), lagWorld)
+    local lagHomeText = format("|cff%s%d|r ms", self:GetThresholdHexColor(lagHome, 1000, 500, 250, 100, 0), lagHome)
+    local lagWorldText = format("|cff%s%d|r ms", self:GetThresholdHexColor(lagWorld, 1000, 500, 250, 100, 0), lagWorld)
 
     self.text:SetText(fpsText.." | |cFF99CC33H:|r"..lagHomeText.." | |cFF99CC33W:|r"..lagWorldText.." | "..self.goldText.." | "..self.tokenPriceText..self.restedXpText)
 end
@@ -147,32 +152,29 @@ function InfoBarFrameMixin:UpdateTokenPrice()
     C_WowTokenPublic.UpdateMarketPrice()
 
     C_Timer.After(2, function()
+        local text = "N/A"
         local tokenPrice = C_WowTokenPublic.GetCurrentMarketPrice()
 
         if tokenPrice and tokenPrice > 0 then
-            tokenPrice = GetMoneyString(tokenPrice, true).." ("..math.floor(self.totalMoney / tokenPrice) ..")"
-        else
-            tokenPrice = "N/A"
+            text = GetMoneyString(tokenPrice, true).." ("..math.floor(self.totalMoney / tokenPrice) ..")"
+
+            SavedVars_CurrentMonth.Token = math.min(SavedVars_CurrentMonth.Token, tokenPrice)
         end
 
-        self.tokenPriceText = tokenPrice
+        self.tokenPriceText = text
     end)
 end
 
-local CalculateAverageMonthlyGains
-
 function InfoBarFrameMixin:CalculateMoney()
-    if not SavedVars_Player then return end
-
     local moneyBefore = SavedVars_Player.Money or 0
     local moneyAfter = GetMoney()
 
     SavedVars_Player.Money = moneyAfter
 
-    SavedVars_CurrentMonthMoney.Gains = SavedVars_CurrentMonthMoney.Gains + (moneyAfter - moneyBefore)
+    SavedVars_CurrentMonth.Gains = SavedVars_CurrentMonth.Gains + (moneyAfter - moneyBefore)
 
-    self.averageMoneyMonth = CalculateAverageMonthlyGains(SavedVars_PreviousMoney)
-    self.averageMoneyDay = SavedVars_CurrentMonthMoney.Gains / self.day
+    self.averageMoneyMonth = self:CalculateAverageMonthlyGains(SavedVars_History)
+    self.averageMoneyDay = SavedVars_CurrentMonth.Gains / self.day
 
     self.totalMoney = 0
     for _, data in pairs(SavedVars_Chars) do
@@ -195,8 +197,6 @@ function InfoBarFrameMixin:CalculateRestedXp()
     end
 end
 
-local FormatTimePlayed
-
 function InfoBarFrameMixin:CalculatePlayTime(totalTime, levelTime)
     SavedVars_Player.PlayTime = totalTime
     SavedVars_Player.LevelPlayTime = levelTime
@@ -208,11 +208,10 @@ function InfoBarFrameMixin:CalculatePlayTime(totalTime, levelTime)
         self.levelPlayTime = self.levelPlayTime + data.LevelPlayTime
     end
 
-    self.playTimeText = format("%s (%s)", FormatTimePlayed(self.playTime), FormatTimePlayed(self.levelPlayTime))
+    SavedVars_CurrentMonth.PlayTime = self.playTime - SavedVars_PreviousMonth.PlayTime
 end
 
-
-FormatTimePlayed = function(totalSeconds)
+function InfoBarFrameMixin:FormatTimePlayed(totalSeconds)
     local years = math.floor(totalSeconds / 31536000) -- 365 days * 24 hours * 3600 seconds
     local remainingAfterYears = totalSeconds % 31536000
 
@@ -233,8 +232,7 @@ FormatTimePlayed = function(totalSeconds)
     end
 end
 
-
-CalculateAverageMonthlyGains = function(savedVarsPreviousMoney)
+function InfoBarFrameMixin:CalculateAverageMonthlyGains(savedVarsPreviousMoney)
     local total = 0
     local count = 0
 
@@ -311,7 +309,7 @@ local function GetThresholdColor(quality, ...)
     end
 end
 
-GetThresholdHexColor = function(quality, ...)
+function InfoBarFrameMixin:GetThresholdHexColor(quality, ...)
     local r, g, b = GetThresholdColor(quality, ...)
     return string.format("%02x%02x%02x", r * 255, g * 255, b * 255)
 end
