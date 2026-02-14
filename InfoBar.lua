@@ -49,7 +49,6 @@ function InfoBarFrameMixin:OnLoad()
     self:RegisterEvent("PLAYER_MONEY")
     self:RegisterEvent("PLAYER_XP_UPDATE")
     self:RegisterEvent("TIME_PLAYED_MSG")
-    self:RegisterEvent("PLAYER_LOGOUT")
 end
 
 function InfoBarFrameMixin:OnEvent(event, ...)
@@ -107,8 +106,6 @@ function InfoBarFrameMixin:OnEvent(event, ...)
         self:CalculateMoney()
     elseif event == "PLAYER_XP_UPDATE" then
         self:CalculateRestedXp()
-    elseif event == "PLAYER_LOGOUT" then
-        RequestTimePlayed()
     elseif event == "TIME_PLAYED_MSG" then
         local totalTime, levelTime = ...
         self:CalculatePlayTime(totalTime, levelTime)
