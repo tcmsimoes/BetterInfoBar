@@ -108,7 +108,7 @@ function InfoBarFrameMixin:OnEvent(event, ...)
     elseif event == "PLAYER_XP_UPDATE" then
         self:CalculateRestedXp()
     elseif event == "PLAYER_LOGOUT" then
-        self:RequestTimePlayed()
+        RequestTimePlayed()
     elseif event == "TIME_PLAYED_MSG" then
         local totalTime, levelTime = ...
         self:CalculatePlayTime(totalTime, levelTime)
