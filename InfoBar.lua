@@ -1,3 +1,6 @@
+local TO_YEARS = 31536000 -- 365 days * 24 hours * 3600 seconds
+local TO_DAYS = 86400 -- 24 hours * 3600 seconds
+local TO_HOURS = 3600 -- seconds
 local FPS_UPDATERATE = 0.5
 local TOKEN_UPDATE_RATE = 5 * 60
 
@@ -20,6 +23,7 @@ function InfoBarFrameMixin:OnLoad()
     self.year = 0
     self.averageMoneyMonth = 0
     self.averageMoneyDay = 0
+    self.averageMoneyHour = 0
     self.totalMoney = 0
     self.goldText = ""
     self.tokenPriceText = "N/A"
@@ -121,6 +125,7 @@ function InfoBarFrameMixin:OnEnter()
     GameTooltip:AddDoubleLine("Previous Month: ", GetMoneyString(SavedVars_PreviousMonth.Gains, true), 1, 1, 1, 1, 1, 1)
     GameTooltip:AddDoubleLine("Average Month: ", GetMoneyString(self.averageMoneyMonth, true), 1, 1, 1, 1, 1, 1)
     GameTooltip:AddDoubleLine("Average Day: ", GetMoneyString(self.averageMoneyDay, true), 1, 1, 1, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Average Hour: ", GetMoneyString(self.averageMoneyHour, true), 1, 1, 1, 1, 1, 1)
     GameTooltip:AddLine("\nPlayed time")
     GameTooltip:AddDoubleLine("Total: ", self:FormatTimePlayed(self.playTime), 1, 1, 1, 1, 1, 1)
     GameTooltip:AddDoubleLine("Current Month: ", self:FormatTimePlayed(SavedVars_CurrentMonth.PlayTime), 1, 1, 1, 1, 1, 1)
@@ -172,6 +177,7 @@ function InfoBarFrameMixin:CalculateMoney()
 
     self.averageMoneyMonth = self:CalculateAverageMonthlyGains(SavedVars_History)
     self.averageMoneyDay = SavedVars_CurrentMonth.Gains / self.day
+    self.averageMoneyHour  = SavedVars_CurrentMonth.Gains / math.floor(SavedVars_CurrentMonth.PlayTime / TO_HOURS)
 
     self.totalMoney = 0
     for _, data in pairs(SavedVars_Chars) do
@@ -209,14 +215,14 @@ function InfoBarFrameMixin:CalculatePlayTime(totalTime, levelTime)
 end
 
 function InfoBarFrameMixin:FormatTimePlayed(totalSeconds)
-    local years = math.floor(totalSeconds / 31536000) -- 365 days * 24 hours * 3600 seconds
-    local remainingAfterYears = totalSeconds % 31536000
+    local years = math.floor(totalSeconds / TO_YEARS)
+    local remainingAfterYears = totalSeconds % TO_YEARS
 
-    local days = math.floor(remainingAfterYears / 86400) -- 24 hours * 3600 seconds
-    local remainingAfterDays = remainingAfterYears % 86400
+    local days = math.floor(remainingAfterYears / TO_DAYS)
+    local remainingAfterDays = remainingAfterYears % TO_DAYS
 
-    local hours = math.floor(remainingAfterDays / 3600)
-    local minutes = math.floor((remainingAfterDays % 3600) / 60)
+    local hours = math.floor(remainingAfterDays / TO_HOURS)
+    local minutes = math.floor((remainingAfterDays % TO_HOURS) / 60)
 
     if years > 0 then
         return string.format("%dy %dd %dh", years, days, hours)
