@@ -80,7 +80,7 @@ function InfoBarFrameMixin:OnEvent(event, ...)
             SavedVars_CurrentMonth = SavedVars_History[self.year][self.month]
             SavedVars_CurrentMonth.Gains = SavedVars_CurrentMonth.Gains or 0
             SavedVars_CurrentMonth.Token = SavedVars_CurrentMonth.Token or 0
-            SavedVars_CurrentMonth.PlayTime = SavedVars_CurrentMonth.PlayTime or 0
+            SavedVars_CurrentMonth.PlayTime = SavedVars_CurrentMonth.PlayTime or 1
 
             if self.month > 1 then
                 SavedVars_History[self.year][self.month - 1] = SavedVars_History[self.year][self.month - 1] or {}
