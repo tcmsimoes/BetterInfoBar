@@ -6,7 +6,7 @@ local TOKEN_UPDATE_RATE = 5 * 60
 
 
 
-BIB_SavedVars = BIB_SavedVars or {}
+BIB_SavedVars = BIB_SavedVars or { Char = {}, History = {} }
 local SavedVars_Chars = nil
 local SavedVars_Player = nil
 local SavedVars_History = nil
@@ -40,7 +40,7 @@ function InfoBarFrameMixin:OnLoad()
         tile = true,
         tileSize = 16,
         edgeSize = 16,
-        insets = {left = 5, right = 5, top = 5, bottom = 5}
+        insets = { left = 5, right = 5, top = 5, bottom = 5 }
     }
     self:SetBackdrop(backdrop_header)
     self:SetBackdropBorderColor(0.5, 0.5, 0.5)
@@ -57,9 +57,7 @@ end
 
 function InfoBarFrameMixin:OnEvent(event, ...)
     if event == "VARIABLES_LOADED" then
-        BIB_SavedVars["Char"] = BIB_SavedVars["Char"] or {}
         SavedVars_Chars = BIB_SavedVars["Char"]
-        BIB_SavedVars["History"] = BIB_SavedVars["History"] or {}
         SavedVars_History = BIB_SavedVars["History"]
     elseif event == "PLAYER_ENTERING_WORLD" then
         local isInitialLogin, isReloadingUi = ...
