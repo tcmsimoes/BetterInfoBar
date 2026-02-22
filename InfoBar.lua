@@ -174,15 +174,17 @@ function InfoBarFrameMixin:CalculateMoney()
     SavedVars_CurrentMonth.Gains = SavedVars_CurrentMonth.Gains + (moneyAfter - moneyBefore)
 
     self.averageMoneyMonth = self:CalculateAverageMonthlyGains(SavedVars_History)
-    self.averageMoneyDay = SavedVars_CurrentMonth.Gains / self.day
-    self.averageMoneyHour  = SavedVars_CurrentMonth.Gains / math.floor(SavedVars_CurrentMonth.PlayTime / TO_HOURS)
+    self.averageMoneyDay = math.floor(SavedVars_CurrentMonth.Gains / self.day)
+    self.averageMoneyHour  = math.floor(SavedVars_CurrentMonth.Gains / math.floor(SavedVars_CurrentMonth.PlayTime / TO_HOURS))
 
     self.totalMoney = 0
     for _, data in pairs(SavedVars_Chars) do
         self.totalMoney = self.totalMoney + data.Money
     end
 
-    self.goldText = GetMoneyString((math.floor(self.totalMoney / 10000) * 10000), true)
+    local totalGold = math.floor(self.totalMoney / 10000) * 10000
+
+    self.goldText = GetMoneyString(totalGold, true)
 end
 
 function InfoBarFrameMixin:CalculateRestedXp()
