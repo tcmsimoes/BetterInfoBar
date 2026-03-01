@@ -173,9 +173,11 @@ function InfoBarFrameMixin:CalculateMoney()
 
     SavedVars_CurrentMonth.Gains = SavedVars_CurrentMonth.Gains + (moneyAfter - moneyBefore)
 
+    local currentHoursPlayed = SavedVars_CurrentMonth.PlayTime >= TO_HOURS and math.floor(SavedVars_CurrentMonth.PlayTime / TO_HOURS) or 1
+
     self.averageMoneyMonth = self:CalculateAverageMonthlyGains(SavedVars_History)
     self.averageMoneyDay = math.floor(SavedVars_CurrentMonth.Gains / self.day)
-    self.averageMoneyHour  = math.floor(SavedVars_CurrentMonth.Gains / math.floor(SavedVars_CurrentMonth.PlayTime / TO_HOURS))
+    self.averageMoneyHour  = math.floor(SavedVars_CurrentMonth.Gains / currentHoursPlayed)
 
     self.totalMoney = 0
     for _, data in pairs(SavedVars_Chars) do
@@ -211,7 +213,43 @@ function InfoBarFrameMixin:CalculatePlayTime(totalTime, levelTime)
         self.levelPlayTime = self.levelPlayTime + data.LevelPlayTime
     end
 
-    SavedVars_CurrentMonth.PlayTime = self.playTime - SavedVars_PreviousMonth.PlayTime
+    local previousPlayTime = self:CalculateTotalPreviousPlayTime()
+
+    SavedVars_CurrentMonth.PlayTime = self.playTime - previousPlayTime
+end
+
+function InfoBarFrameMixin:CalculateAverageMonthlyGains()
+    local total = 0
+    local count = 0
+
+    local currentYear = self.year
+    local currentMonth = self.month
+
+    for year, months in pairs(SavedVars_History) do
+        for month, monthData in pairs(months) do
+            if monthData.Gains and monthData.Gains ~= 0 then
+                total = total + monthData.Gains
+                count = count + 1
+            end
+        end
+    end
+
+    return count > 0 and (total / count) or 0
+end
+
+function InfoBarFrameMixin:CalculateTotalPreviousPlayTime()
+    local total = 0
+    for year, months in pairs(SavedVars_History) do
+        for month, monthData in pairs(months) do
+            if not (year == self.year and month == self.month) then
+                if monthData.PlayTime and monthData.PlayTime ~= 0 then
+                    total = total + monthData.PlayTime
+                end
+            end
+        end
+    end
+
+    return total
 end
 
 function InfoBarFrameMixin:FormatTimePlayed(totalSeconds)
@@ -233,22 +271,6 @@ function InfoBarFrameMixin:FormatTimePlayed(totalSeconds)
     else
         return string.format("%dm", minutes)
     end
-end
-
-function InfoBarFrameMixin:CalculateAverageMonthlyGains(savedVarsPreviousMoney)
-    local total = 0
-    local count = 0
-
-    for _, months in pairs(savedVarsPreviousMoney) do
-        for _, monthData in pairs(months) do
-            if monthData.Gains and monthData.Gains ~= 0 then
-                total = total + monthData.Gains
-                count = count + 1
-            end
-        end
-    end
-
-    return count > 0 and (total / count) or 0
 end
 
 local function GetThresholdPercentage(quality, ...)
